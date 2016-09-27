@@ -1,0 +1,78 @@
+# -*- coding: utf-8 -*-
+
+1.点击硅料
+显示网址
+http://db.solarzoom.com/price_data/21001/index.htm
+
+get
+http://db.solarzoom.com/price_data/21001/index.htm
+
+headers
+Accept:text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8
+Accept-Encoding:gzip, deflate, sdch
+Accept-Language:zh-CN,zh;q=0.8
+Connection:keep-alive
+Cookie:JSESSIONID=5AFFBB8A6D8B348BAFAFC09DA0C24D78
+DNT:1
+Host:db.solarzoom.com
+Referer:http://db.solarzoom.com/price_data/21001/index.htm
+Upgrade-Insecure-Requests:1
+User-Agent:Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.112 Safari/537.36
+
+2.点击下一页
+显示网址
+http://db.solarzoom.com/price_data/index.htm
+
+POST
+http://db.solarzoom.com/price_data/index.htm
+
+headers
+Accept:text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8
+Accept-Encoding:gzip, deflate
+Accept-Language:zh-CN,zh;q=0.8
+Cache-Control:max-age=0
+Connection:keep-alive
+Content-Length:81
+Content-Type:application/x-www-form-urlencoded
+Cookie:JSESSIONID=5AFFBB8A6D8B348BAFAFC09DA0C24D78
+DNT:1
+Host:db.solarzoom.com
+Origin:http://db.solarzoom.com
+Referer:http://db.solarzoom.com/price_data/21001/index.htm
+Upgrade-Insecure-Requests:1
+User-Agent:Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.112 Safari/537.36
+
+FromData
+searchDate:
+productId:21001
+currentPage:2
+button3:下一页 >
+
+3.点击上一页
+显示网址
+http://db.solarzoom.com/price_data/index.htm
+
+POST
+http://db.solarzoom.com/price_data/index.htm
+
+headers
+POST /price_data/index.htm HTTP/1.1
+Host: db.solarzoom.com
+Connection: keep-alive
+Content-Length: 42
+Cache-Control: max-age=0
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8
+Origin: http://db.solarzoom.com
+Upgrade-Insecure-Requests: 1
+User-Agent: Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.112 Safari/537.36
+Content-Type: application/x-www-form-urlencoded
+DNT: 1
+Referer: http://db.solarzoom.com/price_data/index.htm
+Accept-Encoding: gzip, deflate
+Accept-Language: zh-CN,zh;q=0.8
+Cookie: JSESSIONID=5AFFBB8A6D8B348BAFAFC09DA0C24D78
+
+Fromdata
+searchDate:
+productId:21001
+currentPage:50

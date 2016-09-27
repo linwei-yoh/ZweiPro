@@ -6,11 +6,7 @@ from urllib.error import HTTPError,URLError
 from urllib.request import urlopen
 from bs4 import BeautifulSoup
 
-
-# params = {'firstname':'AL','lastname':'Lin'}
-# r = requests.post("http://pythonscraping.com/pages/files/processing.php",data=params)
-# print(r.text)
-
+BaseUrl = "http://db.solarzoom.com"
 #硅料Index URL
 ObjUrl_1 = "http://db.solarzoom.com/price_data/21001/index.htm"
 
@@ -31,7 +27,6 @@ if __name__ == '__main__':
     bsObj = BeautifulSoup(html, 'lxml')
     formlist = bsObj.find("form",{"id":"listForm"})
     namelist = formlist.findAll("a",{"target":"_blank"})
-    
-    for item in namelist:
-        print(item)
- 
+
+    detialUrl = BaseUrl + namelist[0].attrs["href"]
+    print(detialUrl)
