@@ -129,6 +129,8 @@ def getDetailInfo(item, hrefset):
         table = bsObj.find('div', {'class': 'ascout_quote_articlecon'}).table
         rows = table.tr.next_siblings
 
+        # uif-8 能正常的存入，但是EXCEL CVS会乱码
+        # 用gbk 能正确显示 但是会有报错
         with open(csvpath, 'a', newline='', encoding='utf-8') as csvFile:
             writer = csv.writer(csvFile)
             for row in rows:
