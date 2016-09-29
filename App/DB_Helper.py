@@ -35,9 +35,9 @@ def CreateTable(dbpath, tablename):
     if tablename is None or dbpath is None:
         print('数据库路径或者表名不能为None')
         return False
-    
+
     sqlstr = dict_sql[tablename]
-    
+
     try:
         conn = sqlite3.connect(dbpath)
         conn.execute(sqlstr)
@@ -53,17 +53,17 @@ def CreateTable(dbpath, tablename):
 def isTableExists(dbpath, tablename):
     if tablename is None or dbpath is None:
         return False
-    
+
     sqlstr = "select count(*) from sqlite_master " \
              "where type = '%s' and name = '%s'" \
              % ('table', tablename)
-    
+
     conn = sqlite3.connect(dbpath)
     cursor = conn.execute(sqlstr)
     count = cursor.fetchone()
     cursor.close()
     conn.close()
-    
+
     count = count[0]
     if count == 0:
         return False
@@ -74,16 +74,16 @@ def isTableExists(dbpath, tablename):
 def db_init():
     if not os.path.exists(db_path):
         os.makedirs(db_path)
-    
+
     if not os.path.isfile(db_file):
         sqlite3.connect(db_file)
-    
+
     # if not isTableExists(db_file, SolarUrlSet_Table):
     CreateTable(db_file, SolarUrlSet_Table)
-    
+
     # if not isTableExists(db_file, SolarData_Table):
     CreateTable(db_file, SolarData_Table)
-    
+
     print('创建数据库 完成')
 
 

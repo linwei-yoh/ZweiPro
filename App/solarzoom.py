@@ -16,7 +16,6 @@ BaseUrl = 'http://db.solarzoom.com'
 ObjUrl = "http://db.solarzoom.com/price_data/index.htm"
 LoginUrl = 'http://login.solarzoom.com/login'
 
-
 sel_item = {'硅料': '21001', '硅片': '21002', '电池片': '21003', '电池组件': '21004'}
 session = requests.Session()
 
@@ -147,20 +146,20 @@ def accountLogin(username, password):
 def getDetailInfoToSqlite(item, hrefset, delay=1):
     if len(hrefset) == 0:
         return
-    
+
     code = sel_item[item]
     header = getheaderswithtype(code)
     print("开始内链数据采集与保存: %s" % item)
-    
+
     conn = sqlite3.connect(DB_Helper.db_file)
-    
+
     for href in hrefset:
         InfoUrl = BaseUrl + href
         s = session.get(InfoUrl, headers=header)
         bsObj = BeautifulSoup(s.text, 'lxml')
-        
+
         time.sleep(delay)
-        
+
         title = bsObj.find('div', {'class': 'ascout_quote_articletitle'}).get_text()
         date = title[0:11]
         table = bsObj.find('div', {'class': 'ascout_quote_articlecon'}).table
@@ -181,13 +180,13 @@ def getDetailInfoToSqlite(item, hrefset, delay=1):
 def checkUrlInDB(hrefset):
     conn = sqlite3.connect(DB_Helper.db_file)
     newset = set()
-    
+
     for href in hrefset:
         cursor = conn.execute("select count(*) from %s where url = '%s'" % (DB_Helper.SolarUrlSet_Table, href))
         count = cursor.fetchone()
         cursor.close()
         count = count[0]
-        
+
         if count == 0:
             newset.add(href)
             conn.execute("insert into %s (url) values ('%s')" % (DB_Helper.SolarUrlSet_Table, href))
@@ -199,10 +198,10 @@ def checkUrlInDB(hrefset):
 def ScrapingByItem(item, limit=None, delay=1):
     # 获得内链集合
     hrefset = getHrefSetByTypeWithForm(item, limit=limit, delay=delay)
-    
+
     # 与数据库中已经记录的url比较
     newSet = checkUrlInDB(hrefset)
-    
+
     # 获得详细数据
     getDetailInfoToSqlite(item, newSet, delay=delay)
 
