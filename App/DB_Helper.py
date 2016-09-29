@@ -16,6 +16,7 @@ Create_SolarUrlSet_Sql = 'create table %s (' \
                          'url text not null UNIQUE ON CONFLICT IGNORE);' \
                          % SolarUrlSet_Table
 
+# 产品 厂家 和 时间的组合 应该为unique
 Create_SolarDate_Sql = 'create table %s (' \
                        'Id INTEGER PRIMARY KEY AUTOINCREMENT,' \
                        'date text not null,' \

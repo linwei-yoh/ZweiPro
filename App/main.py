@@ -10,4 +10,4 @@ if __name__ == '__main__':
     DB_Helper.db_init()
 
     # 采集solarzoom数据
-    solarzoom.get_data_from_solarzoom('username', '123456')
+    solarzoom.get_data_from_solarzoom('grace_duo', '123456')

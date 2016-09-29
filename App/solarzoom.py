@@ -34,8 +34,8 @@ def getheaderswithtype(code):
     return headers
 
 
-def getHrefSetByTypeWithForm(item, limit=None, delay=1):
-    start_page = 1
+def getHrefSetByTypeWithForm(item, limit=None, delay=1, startpage=1):
+    start_page = startpage
 
     code = sel_item[item]
     headers = getheaderswithtype(code)
@@ -64,7 +64,7 @@ def getHrefSetByTypeWithForm(item, limit=None, delay=1):
         params['currentPage'] = start_page
 
         if limit is not None:
-            if start_page > limit:
+            if start_page >= (limit + startpage):
                 return hrefset
 
         # 每个页面采集延迟1s 降低采集速度避免封杀与损耗服务器资源
@@ -106,7 +106,14 @@ def getLoginHeaders(reqcookie):
 def accountLogin(username, password):
     (data, reqcookie) = getLoginParam(username, password)
     headers = getLoginHeaders(reqcookie)
-    session.post(LoginUrl, data=data, headers=headers)
+    s = session.post(LoginUrl, data=data, headers=headers)
+
+    if s.url == 'http://login.solarzoom.com/login':
+        print('登录Solarzoom失败')
+        return False
+    else:
+        print('登录Solarzoom完成')
+        return True
 
 
 # def getDetailInfoToCSV(item, hrefset, delay=1):
@@ -145,6 +152,7 @@ def accountLogin(username, password):
 
 def getDetailInfoToSqlite(item, hrefset, delay=1):
     if len(hrefset) == 0:
+        print("没有新的数据")
         return
 
     code = sel_item[item]
@@ -163,18 +171,26 @@ def getDetailInfoToSqlite(item, hrefset, delay=1):
         title = bsObj.find('div', {'class': 'ascout_quote_articletitle'}).get_text()
         date = title[0:11]
         table = bsObj.find('div', {'class': 'ascout_quote_articlecon'}).table
-        rows = table.tr.next_siblings
+        try:
+            rows = table.tr.next_siblings
+        except AttributeError as e:
+            print("这里除了问题")
 
         # 这里的处理太过简陋 没有任何保护 应该有更好的办法
         for row in rows:
             val = [date]
-            for cell in row.findAll(['td', 'th']):
-                val.append(cell.get_text().replace(u'\xa0', ' '))
-            conn.execute("insert into %s (date,product,vender,price,change,unit,tax) "
-                         "values ('%s','%s','%s','%s','%s','%s','%s')"
-                         % (DB_Helper.SolarData_Table, val[0], val[1], val[2], val[3], val[4], val[5], val[6]))
+            try:
+                for cell in row.findAll(['td', 'th']):
+                    val.append(cell.get_text().replace(u'\xa0', ' '))
+            except AttributeError as e:  # 源码中两个tr间存在间隔，所以有NavigableString
+                pass
+            else:
+                conn.execute("insert into %s (date,product,vender,price,change,unit,tax) "
+                             "values ('%s','%s','%s','%s','%s','%s','%s')"
+                             % (DB_Helper.SolarData_Table, val[0], val[1], val[2], val[3], val[4], val[5], val[6]))
     conn.commit()
     conn.close()
+    print("数据保存完成")
 
 
 def checkUrlInDB(hrefset):
@@ -195,9 +211,9 @@ def checkUrlInDB(hrefset):
     return newset
 
 
-def ScrapingByItem(item, limit=None, delay=1):
+def ScrapingByItem(item, limit=None, delay=1, startpage=1):
     # 获得内链集合
-    hrefset = getHrefSetByTypeWithForm(item, limit=limit, delay=delay)
+    hrefset = getHrefSetByTypeWithForm(item, limit=limit, delay=delay, startpage=startpage)
 
     # 与数据库中已经记录的url比较
     newSet = checkUrlInDB(hrefset)
@@ -210,13 +226,13 @@ def get_data_from_solarzoom(username, password):
     print("开始采集SolarZoom中的数据")
 
     # 账号登录
-    accountLogin(username, password)
-    print('登录Solarzoom完成')
+    if not accountLogin(username, password):
+        return
 
     # 数据采集并保存
     # limit限制采集页数 默认无限制 直到采集完成
     # delay采集延迟 避免封杀 或损坏服务器资源 默认1s
-    ScrapingByItem('硅料')
-    ScrapingByItem('硅片')
-    ScrapingByItem('电池片')
-    ScrapingByItem('电池组件')
+    ScrapingByItem('硅料', limit=10, startpage=10)
+    # ScrapingByItem('硅片')
+    # ScrapingByItem('电池片')
+    # ScrapingByItem('电池组件')
