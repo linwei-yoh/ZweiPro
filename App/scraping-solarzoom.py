@@ -34,7 +34,7 @@ def getheaderswithtype(code):
     return headers
 
 
-def getHrefSetByTypeWithForm(item, limit=None):
+def getHrefSetByTypeWithForm(item, limit=None, delay=1):
     start_page = 1
 
     code = sel_item[item]
@@ -68,7 +68,7 @@ def getHrefSetByTypeWithForm(item, limit=None):
                 return hrefset
 
         # 每个页面采集延迟1s 降低采集速度避免封杀与损耗服务器资源
-        time.sleep(2)
+        time.sleep(delay)
 
 
 def getLoginParam(username, password):
@@ -109,7 +109,7 @@ def accountLogin(username, password):
     session.post(LoginUrl, data=data, headers=headers)
 
 
-def getDetailInfo(item, hrefset):
+def getDetailInfo(item, hrefset, delay=1):
     if hrefset is None:
         return
 
@@ -117,34 +117,35 @@ def getDetailInfo(item, hrefset):
     csvpath = os.path.join(savaPath, item + '.csv')
     header = getheaderswithtype(code)
 
-    print("开始保存数据到CSV")
+    print("开始内链数据采集与保存: %s" % item)
     for href in hrefset:
         InfoUrl = BaseUrl + href
         s = session.get(InfoUrl, headers=header)
         bsObj = BeautifulSoup(s.text, 'lxml')
 
+        time.sleep(delay)
+        
         title = bsObj.find('div', {'class': 'ascout_quote_articletitle'}).get_text()
         date = title[0:11]
-
         table = bsObj.find('div', {'class': 'ascout_quote_articlecon'}).table
         rows = table.tr.next_siblings
 
         # uif-8 能正常的存入，但是EXCEL CVS会乱码
         # 用gbk 能正确显示 但是会有报错
-        with open(csvpath, 'a', newline='', encoding='utf-8') as csvFile:
+        with open(csvpath, 'a', newline='', encoding='gbk') as csvFile:
             writer = csv.writer(csvFile)
             for row in rows:
                 csvRow = [date]
                 for cell in row.findAll(['td', 'th']):
-                    csvRow.append(cell.get_text())
+                    csvRow.append(cell.get_text().replace(u'\xa0', ' '))
                 writer.writerow(csvRow)
 
-    print("数据保存完成")
+    print("数据获取完成")
 
 
-def ScrapingByItem(item, limit=None):
-    hrefset = getHrefSetByTypeWithForm(item, limit=limit)
-    getDetailInfo(item, hrefset)
+def ScrapingByItem(item, limit=None, delay=1):
+    hrefset = getHrefSetByTypeWithForm(item, limit=limit, delay=delay)
+    getDetailInfo(item, hrefset, delay=delay)
 
 
 def get_data_from_solarzoom(username, password):
@@ -155,7 +156,12 @@ def get_data_from_solarzoom(username, password):
     print('登录完成')
 
     # 数据采集并保存
-    ScrapingByItem('硅料', limit=2)
+    # limit限制采集页数 默认无限制 直到采集完成
+    # delay采集延迟 避免封杀 或损坏服务器资源 默认1s
+    ScrapingByItem('硅料', limit=1)
+    ScrapingByItem('硅片', limit=1)
+    ScrapingByItem('电池片', limit=1)
+    ScrapingByItem('电池组件', limit=1)
 
 
 if __name__ == '__main__':
