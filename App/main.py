@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-
+import DB_Helper
+import solarzoom
 
 
 if __name__ == '__main__':
-    print("HomePage")
+    # 创建数据库
+    DB_Helper.db_init()
+
+    # 采集solarzoom数据
+    solarzoom.get_data_from_solarzoom('username', '123456')

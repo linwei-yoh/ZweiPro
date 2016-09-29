@@ -87,22 +87,22 @@ def db_init():
     print('创建数据库 完成')
 
 
-def db_test():
-    href = "/actual/2102.html"
-    conn = sqlite3.connect(db_file)
-    cursor = conn.execute("select count(*) from %s where url = '%s'" % (SolarUrlSet_Table, href))
-    
-    count = cursor.fetchone()
-    cursor.close()
-    count = count[0]
-    
-    if count == 0:
-        conn.execute("insert into %s values ('%s')" % (SolarUrlSet_Table, href))
-    
-    conn.commit()
-    conn.close()
+#
+# def db_test():
+#     href = "/actual/2102.html"
+#     conn = sqlite3.connect(db_file)
+#     cursor = conn.execute("select count(*) from %s where url = '%s'" % (SolarUrlSet_Table, href))
+#
+#     count = cursor.fetchone()
+#     cursor.close()
+#     count = count[0]
+#
+#     if count == 0:
+#         conn.execute("insert into %s values ('%s')" % (SolarUrlSet_Table, href))
+#
+#     conn.commit()
+#     conn.close()
 
 
 if __name__ == '__main__':
     db_init()
-    db_test()
