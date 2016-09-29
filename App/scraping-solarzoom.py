@@ -227,4 +227,4 @@ def get_data_from_solarzoom(username, password):
 if __name__ == '__main__':
     if not os.path.exists(savaPath):
         os.makedirs(savaPath)
-    get_data_from_solarzoom('grace_duo', '123456')
+    get_data_from_solarzoom('abcdefg', '123456')
