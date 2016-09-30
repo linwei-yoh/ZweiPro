@@ -261,11 +261,11 @@ def get_data_from_solarzoom(username, password):
     # 数据采集并保存
     # limit限制采集页数 默认无限制 直到采集完成
     # delay采集延迟 避免封杀 或损坏服务器资源 默认1s
-    # ScrapingByItem('硅料', startpage=47, limit=1)
+    # 例子 ScrapingByItem('硅料', limit=1, startpage=47) 从47页开始获取1页
     ScrapingByItem('硅料')
-    # ScrapingByItem('硅片')
-    # ScrapingByItem('电池片')
-    # ScrapingByItem('电池组件')
+    ScrapingByItem('硅片')
+    ScrapingByItem('电池片')
+    ScrapingByItem('电池组件')
 
 
 if __name__ == '__main__':
