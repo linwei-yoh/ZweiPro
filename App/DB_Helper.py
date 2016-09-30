@@ -25,7 +25,8 @@ Create_SolarDate_Sql = 'create table %s (' \
                        'price text,' \
                        'change text,' \
                        'unit text,' \
-                       'tax text);' \
+                       'tax text,' \
+                       ' UNIQUE (date, product,vender) ON CONFLICT IGNORE);' \
                        % SolarData_Table
 
 dict_sql = {SolarUrlSet_Table: Create_SolarUrlSet_Sql,

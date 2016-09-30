@@ -9,6 +9,7 @@ from bs4 import BeautifulSoup
 from pyquery import PyQuery as Q
 import DB_Helper
 import sqlite3
+import Utility
 
 # 硅料 21001 硅片 21002 电池片 21003 电池组件 21004
 
@@ -155,40 +156,68 @@ def getDetailInfoToSqlite(item, hrefset, delay=1):
         print("没有新的数据")
         return
 
+    print("开始内链数据采集与保存: %s" % item)
     code = sel_item[item]
     header = getheaderswithtype(code)
-    print("开始内链数据采集与保存: %s" % item)
-
     conn = sqlite3.connect(DB_Helper.db_file)
 
+    hrefsize = len(hrefset)
+    hrefcount = 0
     for href in hrefset:
         InfoUrl = BaseUrl + href
         s = session.get(InfoUrl, headers=header)
         bsObj = BeautifulSoup(s.text, 'lxml')
-
+        hrefcount += 1
+        print("开始载入 %s / %s" % (hrefcount, hrefsize))
+        
         time.sleep(delay)
 
-        title = bsObj.find('div', {'class': 'ascout_quote_articletitle'}).get_text()
-        date = title[0:11]
-        table = bsObj.find('div', {'class': 'ascout_quote_articlecon'}).table
-        try:
-            rows = table.tr.next_siblings
-        except AttributeError as e:
-            print("这里除了问题")
+        # 标题 日期获得
+        title_ele = bsObj.find('div', {'class': 'ascout_quote_articletitle'})
+        if title_ele is None:
+            date = 'unknow'
+            Utility.logger.error("标题查询失败 Url:%s" % InfoUrl)
+        else:
+            date = (title_ele.get_text())[0:11]
 
-        # 这里的处理太过简陋 没有任何保护 应该有更好的办法
+        # 表 查询
+        try:
+            table_ele = bsObj.find('table')
+            colnum = table_ele.find('tr')
+        except AttributeError as e:
+            Utility.logger.error("表查询失败 Url:%s" % InfoUrl)
+            continue
+
+        # 表 列名获得
+        col_list = []
+        for col_name in colnum.find_all(['td', 'th']):
+            col_list.append(col_name.get_text(strip=True))
+
+        # 表 行获得
+        rows = colnum.find_next_siblings('tr')
+
+        # 将每行各个数据存入对应的字段中 并存储到sqlite中
         for row in rows:
-            val = [date]
+            col_dir = {'date': date, '产品': None, '厂家': None, '价格': None, '涨跌': None, '单位': None, '含税': None}
             try:
-                for cell in row.findAll(['td', 'th']):
-                    val.append(cell.get_text().replace(u'\xa0', ' '))
-            except AttributeError as e:  # 源码中两个tr间存在间隔，所以有NavigableString
-                pass
-            else:
-                conn.execute("insert into %s (date,product,vender,price,change,unit,tax) "
-                             "values ('%s','%s','%s','%s','%s','%s','%s')"
-                             % (DB_Helper.SolarData_Table, val[0], val[1], val[2], val[3], val[4], val[5], val[6]))
-    conn.commit()
+                cells = row.find_all(['td', 'th'])
+            except AttributeError as e:
+                # 如果采用find_next_siblings()方法依旧会获得 navigateStrng则报错
+                Utility.logger.error("row find_all 失败 Url:%s" % InfoUrl)
+                continue
+    
+            for i in range(len(cells)):
+                col_dir[col_list[i]] = cells[i].get_text().replace(u'\xa0', ' ')
+    
+            if col_dir['产品'] == '' or col_dir['厂家'] == '':
+                continue
+            conn.execute("insert into %s (date,product,vender,price,change,unit,tax) "
+                         "values ('%s','%s','%s','%s','%s','%s','%s')"
+                         % (DB_Helper.SolarData_Table,
+                            col_dir['date'], col_dir['产品'], col_dir['厂家'],
+                            col_dir['价格'], col_dir['涨跌'], col_dir['单位'], col_dir['含税']))
+        conn.commit()
+        
     conn.close()
     print("数据保存完成")
 
@@ -232,7 +261,27 @@ def get_data_from_solarzoom(username, password):
     # 数据采集并保存
     # limit限制采集页数 默认无限制 直到采集完成
     # delay采集延迟 避免封杀 或损坏服务器资源 默认1s
-    ScrapingByItem('硅料', limit=10, startpage=10)
+    # ScrapingByItem('硅料', startpage=47, limit=1)
+    ScrapingByItem('硅料')
     # ScrapingByItem('硅片')
     # ScrapingByItem('电池片')
     # ScrapingByItem('电池组件')
+
+
+if __name__ == '__main__':
+    if not accountLogin('123456', '123456'):
+        exit()
+    
+    code = sel_item['硅料']
+    header = getheaderswithtype(code)
+    testUrl = 'http://db.solarzoom.com/actual_price/article_575.htm'
+    
+    s = session.get(testUrl, headers=header)
+    bsObj = BeautifulSoup(s.text, 'lxml')
+    
+    title_ele = bsObj.find('div', {'class': 'ascout_quote_articletitle'})
+    if title_ele is None:
+        date = 'unknow'
+        Utility.logger.error("标题查询失败")
+    else:
+        date = (title_ele.get_text())[0:11]
