@@ -11,13 +11,15 @@ db_file = '../DataBase/scraping.db'
 SolarUrlSet_Table = "Solar_Url"
 SolarData_Table = 'Solar_Data'
 
+PvNewsUrlSet_Table = 'PvNews_Url'
+PvNewsData_Table = 'PvNews_Data'
+
 Create_SolarUrlSet_Sql = 'create table %s (' \
                          'Id INTEGER PRIMARY KEY AUTOINCREMENT,' \
                          'url text not null UNIQUE ON CONFLICT IGNORE);' \
                          % SolarUrlSet_Table
 
-# 产品 厂家 和 时间的组合 应该为unique
-Create_SolarDate_Sql = 'create table %s (' \
+Create_SolarData_Sql = 'create table %s (' \
                        'Id INTEGER PRIMARY KEY AUTOINCREMENT,' \
                        'date text not null,' \
                        'product text not null,' \
@@ -29,8 +31,28 @@ Create_SolarDate_Sql = 'create table %s (' \
                        ' UNIQUE (date, product,vender) ON CONFLICT IGNORE);' \
                        % SolarData_Table
 
+Create_PvNewsUrlSet_Sql = "create table %s (" \
+                          "Id INTEGER PRIMARY KEY AUTOINCREMENT," \
+                          "url text not null UNIQUE ON CONFLICT IGNORE);" \
+                          % PvNewsUrlSet_Table
+
+Create_PvNewsData_Sql = "create table %s (" \
+                        "Id INTEGER PRIMARY KEY AUTOINCREMENT," \
+                        "date text not null," \
+                        "category text not null," \
+                        "vender text not null," \
+                        "unit text not null," \
+                        "value text," \
+                        "change text," \
+                        "output text," \
+                        "remark text," \
+                        "UNIQUE (date, category,vender) ON CONFLICT IGNORE);" \
+                        % PvNewsData_Table
+
 dict_sql = {SolarUrlSet_Table: Create_SolarUrlSet_Sql,
-            SolarData_Table: Create_SolarDate_Sql}
+            SolarData_Table: Create_SolarData_Sql,
+            PvNewsUrlSet_Table: Create_PvNewsUrlSet_Sql,
+            PvNewsData_Table: Create_PvNewsData_Sql}
 
 
 def CreateTable(dbpath, tablename):
@@ -44,8 +66,7 @@ def CreateTable(dbpath, tablename):
         conn = sqlite3.connect(dbpath)
         conn.execute(sqlstr)
     except sqlite3.OperationalError as e:
-        print(e)
-        print('表: %s已经存在' % tablename)
+        print('表: %s链接正常' % tablename)
     else:
         print('表: %s创建成功' % tablename)
     finally:
@@ -86,24 +107,10 @@ def db_init():
     # if not isTableExists(db_file, SolarData_Table):
     CreateTable(db_file, SolarData_Table)
 
+    CreateTable(db_file, PvNewsUrlSet_Table)
+    CreateTable(db_file, PvNewsData_Table)
+
     print('创建数据库 完成')
-
-
-#
-# def db_test():
-#     href = "/actual/2102.html"
-#     conn = sqlite3.connect(db_file)
-#     cursor = conn.execute("select count(*) from %s where url = '%s'" % (SolarUrlSet_Table, href))
-#
-#     count = cursor.fetchone()
-#     cursor.close()
-#     count = count[0]
-#
-#     if count == 0:
-#         conn.execute("insert into %s values ('%s')" % (SolarUrlSet_Table, href))
-#
-#     conn.commit()
-#     conn.close()
 
 
 if __name__ == '__main__':

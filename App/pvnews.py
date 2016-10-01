@@ -6,34 +6,56 @@ from bs4 import BeautifulSoup
 from pyquery import PyQuery as Q
 import Utility
 import DB_Helper
+import Utility
 
 LoginUrl = 'http://www.pvnews.cn/e/enews/index.php'
+BaseUrl = 'http://www.pvnews.cn'
 
 Url_dir = {'多晶硅料': "http://www.pvnews.cn/yuanshengduojing/",
            '硅片晶圆': 'http://www.pvnews.cn/guipianhangqing/',
            '晶硅电池': 'http://www.pvnews.cn/dianchipian/',
            '电池组件': 'http://www.pvnews.cn/dianchizujian/'}
+indexPart = 'index_?.php'
 
 session = requests.Session()
 
-'''
-POST http://www.pvnews.cn/e/enews/index.php
-ecmsfrom:
-enews:login
-username:123456
-password:122345
-Submit:登录
-'''
+
+def getDetailByPane(item, pagelimit=None, delay=1, startindex=1):
+    pageNum = 0
+    pageIndex = startindex
+    # 获得总页数
+    ObjUrl = Url_dir[item]
+    try:
+        pageList = ObjUrl.find('div', {'class': 'list_page'}).get_text()
+        pageList.find()
+        pageNum = int(titalPage)
+    except ValueError as e:
+        Utility.logger.error("%s 页面 总页数读取出错" % item)
+        return
+    except AttributeError as e:
+        Utility.logger.error("%s 页面 总页数元素查找出错" % item)
+        return
+
+    if pageIndex == 1:
+        trageUrl = ObjUrl + 'index.php'
+
+    else:
+        trageUrl = ObjUrl + ('index_%s.php' % pageIndex)
+
+        # 遍历所有页数
+        # 逐个页面 提取内链 进行读取 成功则存入该内链
+        # for index in range(pageNum):
+
 
 
 def getLoginParam(username, password):
     data = {'username': None, 'password': None, 'Submit': '登录'}
-    
+
     data['ecmsfrom'] = ''
     data['enews'] = 'login'
     data['username'] = username
     data['password'] = password
-    
+
     return data
 
 
@@ -43,10 +65,10 @@ def accountLogin(username, password):
                    'AppleWebKit/537.36 (KHTML, like Gecko) '
                    'Chrome/49.0.2623.112 '
                    'Safari/537.36'}
-    
+
     data = getLoginParam(username, password)
     s = session.post(LoginUrl, data=data, headers=headers)
-    
+
     if len(s.cookies) == 0:
         print("登录失败")
         return False
@@ -56,22 +78,24 @@ def accountLogin(username, password):
 
 
 if __name__ == '__main__':
-    if not accountLogin('abcdefg', '123456'):
-        exit()
-    
-    testUrl = 'http://www.pvnews.cn/yuanshengduojing/2016-09-29/162644.php'
-    s = session.get(testUrl)
-    bsObj = BeautifulSoup(s.text, 'lxml')
-    
-    try:
-        table_ele = bsObj.find('div', {'class': 'bencandy_nr'}).table
-        rows = table_ele.tr.find_next_siblings('tr')
-    except AttributeError as e:
-        print("页面崩溃 或者 也是不对")
-    else:
-        for row in rows:
-            print(row.get_text('|', strip=True))
-            
+    getDetailByPane('多晶硅料', )
+
+    # if not accountLogin('abcdefg', '123456'):
+    #     exit()
+    #
+    # testUrl = 'http://www.pvnews.cn/yuanshengduojing/2016-09-29/162644.php'
+    # s = session.get(testUrl)
+    # bsObj = BeautifulSoup(s.text, 'lxml')
+    #
+    # try:
+    #     table_ele = bsObj.find('div', {'class': 'bencandy_nr'}).table
+    #     rows = table_ele.tr.find_next_siblings('tr')
+    # except AttributeError as e:
+    #     print("页面崩溃 或者 也是不对")
+    # else:
+    #     for row in rows:
+    #         print(row.get_text('|', strip=True))
+
             # 厂家|备注|万元/吨|涨/跌
             # 福建明溪中硅科技有限公司|-|8|-
             # 福建亿田硅业有限公司|-|8|-

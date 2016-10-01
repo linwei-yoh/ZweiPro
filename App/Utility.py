@@ -6,7 +6,7 @@ import logging
 # format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
 def logconfig():
     logging.basicConfig(level=logging.ERROR,
-                        format='%(asctime)s %(levelname)s %(message)s',
+                        format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
                         datefmt='%Y-%m-%d %H:%M:%S',
                         filename='ErrMsg.log',
                         filemode='a+')
