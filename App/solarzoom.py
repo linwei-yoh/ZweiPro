@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 from pyquery import PyQuery as Q
 import DB_Helper
 import sqlite3
-import Utility
+import logger
 
 # 硅料 21001 硅片 21002 电池片 21003 电池组件 21004
 
@@ -176,7 +176,7 @@ def getDetailInfoToSqlite(item, hrefset, delay=1):
         title_ele = bsObj.find('div', {'class': 'ascout_quote_articletitle'})
         if title_ele is None:
             date = 'unknow'
-            Utility.logger.error("标题查询失败 Url:%s" % InfoUrl)
+            logger.logger.error("标题查询失败 Url:%s" % InfoUrl)
         else:
             date = (title_ele.get_text())[0:11]
 
@@ -185,7 +185,7 @@ def getDetailInfoToSqlite(item, hrefset, delay=1):
             table_ele = bsObj.find('table')
             colnum = table_ele.find('tr')
         except AttributeError as e:
-            Utility.logger.error("表查询失败 Url:%s" % InfoUrl)
+            logger.logger.error("表查询失败 Url:%s" % InfoUrl)
             continue
 
         # 表 列名获得
@@ -203,7 +203,7 @@ def getDetailInfoToSqlite(item, hrefset, delay=1):
                 cells = row.find_all(['td', 'th'])
             except AttributeError as e:
                 # 如果采用find_next_siblings()方法依旧会获得 navigateStrng则报错
-                Utility.logger.error("row find_all 失败 Url:%s" % InfoUrl)
+                logger.logger.error("row find_all 失败 Url:%s" % InfoUrl)
                 continue
     
             for i in range(len(cells)):
@@ -282,6 +282,6 @@ if __name__ == '__main__':
     title_ele = bsObj.find('div', {'class': 'ascout_quote_articletitle'})
     if title_ele is None:
         date = 'unknow'
-        Utility.logger.error("标题查询失败")
+        logger.logger.error("标题查询失败")
     else:
         date = (title_ele.get_text())[0:11]

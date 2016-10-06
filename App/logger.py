@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 import logging
 
-
 # format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
 def logconfig():
     logging.basicConfig(level=logging.ERROR,

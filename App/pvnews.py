@@ -2,50 +2,106 @@
 # -*- coding: utf-8 -*-
 
 import requests
-from bs4 import BeautifulSoup
 from pyquery import PyQuery as Q
-import Utility
+import logger
 import DB_Helper
-import Utility
+import re
+from bs4 import BeautifulSoup
+import sqlite3
+import time
+import UrlUtility
 
 LoginUrl = 'http://www.pvnews.cn/e/enews/index.php'
 BaseUrl = 'http://www.pvnews.cn'
 
-Url_dir = {'多晶硅料': "http://www.pvnews.cn/yuanshengduojing/",
-           '硅片晶圆': 'http://www.pvnews.cn/guipianhangqing/',
-           '晶硅电池': 'http://www.pvnews.cn/dianchipian/',
-           '电池组件': 'http://www.pvnews.cn/dianchizujian/'}
-indexPart = 'index_?.php'
+Url_dir = {'多晶硅料': '/yuanshengduojing/index.php',
+           '硅片晶圆': '/guipianhangqing/index.php',
+           '晶硅电池': '/dianchipian/index.php',
+           '电池组件': '/dianchizujian/index.php'}
+
+Name_dir = {'多晶硅料': 'yuanshengduojing',
+            '硅片晶圆': 'guipianhangqing',
+            '晶硅电池': 'dianchipian',
+            '电池组件': 'dianchizujian'}
+
+Type_dir = {'多晶硅料': '1',
+            '硅片晶圆': '2',
+            '晶硅电池': '3',
+            '电池组件': '4'}
+
+pages = set()
 
 session = requests.Session()
 
 
-def getDetailByPane(item, pagelimit=None, delay=1, startindex=1):
-    pageNum = 0
-    pageIndex = startindex
-    # 获得总页数
-    ObjUrl = Url_dir[item]
-    try:
-        pageList = ObjUrl.find('div', {'class': 'list_page'}).get_text()
-        pageList.find()
-        pageNum = int(titalPage)
-    except ValueError as e:
-        Utility.logger.error("%s 页面 总页数读取出错" % item)
+def getAllhrefsFromSql():
+    conn = sqlite3.connect(DB_Helper.db_file)
+    sqlstr = "select url from %s" % DB_Helper.PvNewsUrlSet_Table
+    cursor = conn.execute(sqlstr)
+    values = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    hrefList = [i[0] for i in values]
+    return hrefList
+
+
+def searchAllHrefs(item_type):
+    newHrefs = set()
+    hrefList = getAllhrefsFromSql()
+    count = 1
+    maxlen = len(pages)
+    
+    conn = sqlite3.connect(DB_Helper.db_file)
+    print("开始载入页面中所有链接的数据")
+    for page in pages:
+        '''查询当前页面上 所有list_list中的href'''
+        print("正在处理第%s/%s 页" % (count, maxlen))
+        time.sleep(0.5)
+        count += 1
+        ObjUrl = BaseUrl + page
+        bsObj = UrlUtility.getBsObjFromUrl(ObjUrl)
+        
+        try:
+            newtable = bsObj.find("div", {'class': 'list_list'})
+            newlist = newtable.find_all('a')
+        except AttributeError as e:
+            logger.logger.error("页面: %s  href列表 查询失败" % page)
+        else:
+            for item in newlist:
+                checkhref = item.get_text()
+                if not checkhref in hrefList:
+                    newHrefs.add(checkhref)
+            
+            for href in newHrefs:
+                insertSql = "insert into %s (url,type) values ('%s','%s' )" \
+                            % (DB_Helper.PvNewsUrlSet_Table, href, item_type)
+                try:
+                    conn.execute(insertSql)
+                except sqlite3.OperationalError:
+                    print("插入地址出错 %s" % href)
+            conn.commit()
+    conn.close()
+
+
+def searchAllPages(url, name):
+    '''获得所有页面链接'''
+    global pages
+    ObjUrl = BaseUrl + url
+    regular_str = r"\/%s\/index_*[0-9]*\.php" % name
+    
+    time.sleep(1)
+    bsObj = UrlUtility.getBsObjFromUrl(ObjUrl)
+    if bsObj is None:
         return
-    except AttributeError as e:
-        Utility.logger.error("%s 页面 总页数元素查找出错" % item)
-        return
-
-    if pageIndex == 1:
-        trageUrl = ObjUrl + 'index.php'
-
-    else:
-        trageUrl = ObjUrl + ('index_%s.php' % pageIndex)
-
-        # 遍历所有页数
-        # 逐个页面 提取内链 进行读取 成功则存入该内链
-        # for index in range(pageNum):
-
+    
+    links = bsObj.find_all('a', href=re.compile(regular_str))
+    for link in links:
+        if 'href' in link.attrs:
+            newhref = link.attrs['href']
+            if newhref not in pages:
+                # 新页面
+                pages.add(newhref)
+                searchAllPages(newhref, name)
 
 
 def getLoginParam(username, password):
@@ -77,30 +133,20 @@ def accountLogin(username, password):
         return True
 
 
+def getDataByItem(item):
+    global pages
+    pages = set()
+    
+    item_type = Type_dir[item]
+    item_url = Url_dir[item]
+    item_name = Name_dir[item]
+    print("%s :开始页面查询" % item)
+    # 递归查询
+    searchAllPages(item_url, item_name)
+    print('共有 %s页' % len(pages))
+    
+    searchAllHrefs(item_type)
+
+
 if __name__ == '__main__':
-    getDetailByPane('多晶硅料', )
-
-    # if not accountLogin('abcdefg', '123456'):
-    #     exit()
-    #
-    # testUrl = 'http://www.pvnews.cn/yuanshengduojing/2016-09-29/162644.php'
-    # s = session.get(testUrl)
-    # bsObj = BeautifulSoup(s.text, 'lxml')
-    #
-    # try:
-    #     table_ele = bsObj.find('div', {'class': 'bencandy_nr'}).table
-    #     rows = table_ele.tr.find_next_siblings('tr')
-    # except AttributeError as e:
-    #     print("页面崩溃 或者 也是不对")
-    # else:
-    #     for row in rows:
-    #         print(row.get_text('|', strip=True))
-
-            # 厂家|备注|万元/吨|涨/跌
-            # 福建明溪中硅科技有限公司|-|8|-
-            # 福建亿田硅业有限公司|-|8|-
-            # 上海普罗新能源有限公司|-|7.5|-
-            # 宁夏银星多晶硅有限责任公司|-|8.5|-
-            # 南阳迅天宇硅品有限公司|-|7.5|-
-            # 济南天琴硅业有限公司|-|8.5|-
-            # 佳科太阳能硅（厦门）有限公司|-|8.5|-
+    getDataByItem('多晶硅料')

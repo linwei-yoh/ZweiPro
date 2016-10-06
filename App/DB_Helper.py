@@ -33,7 +33,9 @@ Create_SolarData_Sql = 'create table %s (' \
 
 Create_PvNewsUrlSet_Sql = "create table %s (" \
                           "Id INTEGER PRIMARY KEY AUTOINCREMENT," \
-                          "url text not null UNIQUE ON CONFLICT IGNORE);" \
+                          "url text not null UNIQUE ON CONFLICT IGNORE," \
+                          "type text not null default '1'," \
+                          "mark integer default 0);" \
                           % PvNewsUrlSet_Table
 
 Create_PvNewsData_Sql = "create table %s (" \
