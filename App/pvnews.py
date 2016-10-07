@@ -3,7 +3,7 @@
 
 import requests
 from pyquery import PyQuery as Q
-import logger
+from logger import logger
 import DB_Helper
 import re
 from bs4 import BeautifulSoup
@@ -30,6 +30,7 @@ Type_dir = {'多晶硅料': '1',
             '电池组件': '4'}
 
 pages = set()
+hrefs = set()
 
 session = requests.Session()
 
@@ -41,66 +42,58 @@ def getAllhrefsFromSql():
     values = cursor.fetchall()
     cursor.close()
     conn.close()
-    hrefList = [i[0] for i in values]
+    hrefList = set(i[0] for i in values)
     return hrefList
 
 
-def searchAllHrefs(item_type):
-    newHrefs = set()
-    hrefList = getAllhrefsFromSql()
-    count = 1
-    maxlen = len(pages)
+def savehrefToSql(item_type):
+    global hrefs
+    newhref_count = 0
+    hreflist = getAllhrefsFromSql()
     
+    print("正在存储新的内链地址")
     conn = sqlite3.connect(DB_Helper.db_file)
-    print("开始载入页面中所有链接的数据")
-    for page in pages:
-        '''查询当前页面上 所有list_list中的href'''
-        print("正在处理第%s/%s 页" % (count, maxlen))
-        time.sleep(0.5)
-        count += 1
-        ObjUrl = BaseUrl + page
-        bsObj = UrlUtility.getBsObjFromUrl(ObjUrl)
-        
-        try:
-            newtable = bsObj.find("div", {'class': 'list_list'})
-            newlist = newtable.find_all('a')
-        except AttributeError as e:
-            logger.logger.error("页面: %s  href列表 查询失败" % page)
-        else:
-            for item in newlist:
-                checkhref = item.get_text()
-                if not checkhref in hrefList:
-                    newHrefs.add(checkhref)
-            
-            for href in newHrefs:
-                insertSql = "insert into %s (url,type) values ('%s','%s' )" \
-                            % (DB_Helper.PvNewsUrlSet_Table, href, item_type)
-                try:
-                    conn.execute(insertSql)
-                except sqlite3.OperationalError:
-                    print("插入地址出错 %s" % href)
-            conn.commit()
+    for href in hrefs:
+        if not href in hreflist:
+            insertSql = "insert into %s (url,type) values ('%s','%s' )" \
+                        % (DB_Helper.PvNewsUrlSet_Table, href, item_type)
+            conn.execute(insertSql)
+            newhref_count += 1
+    conn.commit()
     conn.close()
+    print("内链地址更新完成 更新数量:%s" % newhref_count)
 
 
 def searchAllPages(url, name):
     '''获得所有页面链接'''
     global pages
+    global hrefs
+    
     ObjUrl = BaseUrl + url
     regular_str = r"\/%s\/index_*[0-9]*\.php" % name
+    pages.add(url)
+    print("开始读取页面:%s" % len(pages))
     
     time.sleep(1)
     bsObj = UrlUtility.getBsObjFromUrl(ObjUrl)
     if bsObj is None:
         return
+
+    try:
+        newtable = bsObj.find("div", {'class': 'list_list'})
+        newlist = newtable.find_all('a')
+    except AttributeError as e:
+        logger.error("页面: %s  href列表 查询失败" % url)
+    else:
+        for item in newlist:
+            hrefs.add(item.attrs['href'])
     
     links = bsObj.find_all('a', href=re.compile(regular_str))
     for link in links:
         if 'href' in link.attrs:
             newhref = link.attrs['href']
+            # 有新页面
             if newhref not in pages:
-                # 新页面
-                pages.add(newhref)
                 searchAllPages(newhref, name)
 
 
@@ -143,10 +136,19 @@ def getDataByItem(item):
     print("%s :开始页面查询" % item)
     # 递归查询
     searchAllPages(item_url, item_name)
-    print('共有 %s页' % len(pages))
-    
-    searchAllHrefs(item_type)
+
+    # 存储内链地址
+    savehrefToSql(item_type)
 
 
 if __name__ == '__main__':
-    getDataByItem('多晶硅料')
+    bsobj = UrlUtility.getBsObjFromUrl('http://www.pvnews.cn/yuanshengduojing/2010-11-05/645.html')
+    
+    # 文章日期
+    subtitle = bsobj.find('div', {'class': 'bencandy_ftitle'})
+    article_date = subtitle.get_text(strip=True).split(' ', 1)[0]
+    print(article_date)
+    
+    for child in bsobj.find('table').tr.find_next_siblings('tr'):
+        print(child.get_text(" ", strip=True))
+        print("-----------------------------------------------------")
