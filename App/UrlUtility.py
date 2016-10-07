@@ -13,7 +13,7 @@ def getBsObjFromUrl(url):
     count = 0
     while 1:
         try:
-            r = requests.get(url, headers=hreader, timeout=10)
+            r = requests.get(url, headers=hreader, timeout=5)
         except (requests.ConnectionError, requests.HTTPError) as e:
             count += 1
             if count > 5:
@@ -21,7 +21,7 @@ def getBsObjFromUrl(url):
                 return None
         else:
             break
-    
+
     bsObj = BeautifulSoup(r.text.encode(r.encoding).decode('utf-8'), 'lxml')
     r.close()
     return bsObj

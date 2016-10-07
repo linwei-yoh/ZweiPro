@@ -10,6 +10,8 @@ from bs4 import BeautifulSoup
 import sqlite3
 import time
 import UrlUtility
+import pandas as pd
+import html5lib
 
 LoginUrl = 'http://www.pvnews.cn/e/enews/index.php'
 BaseUrl = 'http://www.pvnews.cn'
@@ -35,9 +37,14 @@ hrefs = set()
 session = requests.Session()
 
 
-def getAllhrefsFromSql():
+def getAllhrefsFromSql(item_type, mark=None):
     conn = sqlite3.connect(DB_Helper.db_file)
-    sqlstr = "select url from %s" % DB_Helper.PvNewsUrlSet_Table
+    if mark is None:
+        sqlstr = "select url from %s where type = '%s'" \
+                 % (DB_Helper.PvNewsUrlSet_Table, item_type)
+    else:
+        sqlstr = "select url from %s where type = '%s' and mark = %s" \
+                 % (DB_Helper.PvNewsUrlSet_Table, item_type, mark)
     cursor = conn.execute(sqlstr)
     values = cursor.fetchall()
     cursor.close()
@@ -49,8 +56,8 @@ def getAllhrefsFromSql():
 def savehrefToSql(item_type):
     global hrefs
     newhref_count = 0
-    hreflist = getAllhrefsFromSql()
-    
+    hreflist = getAllhrefsFromSql(item_type)
+
     print("正在存储新的内链地址")
     conn = sqlite3.connect(DB_Helper.db_file)
     for href in hrefs:
@@ -64,17 +71,35 @@ def savehrefToSql(item_type):
     print("内链地址更新完成 更新数量:%s" % newhref_count)
 
 
+def getDataFromHref(item_type):
+    # 获得还没采集数据的href地址
+    targetlist = getAllhrefsFromSql(item_type, mark=1)
+
+    for targethref in targetlist:
+        ObjUrl = BaseUrl + targethref
+        time.sleep(2)
+        bsObj = UrlUtility.getBsObjFromUrl(ObjUrl)
+        if bsObj is None:
+            return
+
+        # 日期
+        subtitle = bsObj.find('div', {'class': 'bencandy_ftitle'})
+        article_date = subtitle.get_text(strip=True).split(' ', 1)[0]
+
+
+
+
 def searchAllPages(url, name):
     '''获得所有页面链接'''
     global pages
     global hrefs
-    
+
     ObjUrl = BaseUrl + url
     regular_str = r"\/%s\/index_*[0-9]*\.php" % name
     pages.add(url)
     print("开始读取页面:%s" % len(pages))
-    
-    time.sleep(1)
+
+    time.sleep(2)
     bsObj = UrlUtility.getBsObjFromUrl(ObjUrl)
     if bsObj is None:
         return
@@ -87,7 +112,7 @@ def searchAllPages(url, name):
     else:
         for item in newlist:
             hrefs.add(item.attrs['href'])
-    
+
     links = bsObj.find_all('a', href=re.compile(regular_str))
     for link in links:
         if 'href' in link.attrs:
@@ -129,26 +154,30 @@ def accountLogin(username, password):
 def getDataByItem(item):
     global pages
     pages = set()
-    
+
     item_type = Type_dir[item]
     item_url = Url_dir[item]
     item_name = Name_dir[item]
-    print("%s :开始页面查询" % item)
+    print("%s :开始收集" % item)
     # 递归查询
     searchAllPages(item_url, item_name)
 
     # 存储内链地址
     savehrefToSql(item_type)
 
+    # 获取内链数据
+
 
 if __name__ == '__main__':
+    # getDataByItem('多晶硅料')
     bsobj = UrlUtility.getBsObjFromUrl('http://www.pvnews.cn/yuanshengduojing/2010-11-05/645.html')
-    
+
     # 文章日期
     subtitle = bsobj.find('div', {'class': 'bencandy_ftitle'})
     article_date = subtitle.get_text(strip=True).split(' ', 1)[0]
     print(article_date)
-    
-    for child in bsobj.find('table').tr.find_next_siblings('tr'):
-        print(child.get_text(" ", strip=True))
-        print("-----------------------------------------------------")
+
+    tablenode = bsobj.find('div', {'class': 'bencandy_nr'}).table
+    df = pd.read_html(str(tablenode))
+    print(len(df))
+    print(df[0])
