@@ -180,8 +180,8 @@ if __name__ == '__main__':
         exit(0)
     
     urllist = []
-    # urllist.append(url1)
-    # urllist.append(url2)
+    urllist.append(url1)
+    urllist.append(url2)
     urllist.append(url3)
     urllist.append(url4)
     urllist.append(url5)
