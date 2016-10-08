@@ -110,7 +110,7 @@ def db_init():
     CreateTable(db_file, SolarData_Table)
 
     CreateTable(db_file, PvNewsUrlSet_Table)
-    CreateTable(db_file, PvNewsData_Table)
+    # CreateTable(db_file, PvNewsData_Table)
 
     print('创建数据库 完成')
 
