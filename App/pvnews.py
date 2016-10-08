@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import requests
+from builtins import print
 from pyquery import PyQuery as Q
 from logger import logger
 import DB_Helper
@@ -178,6 +179,11 @@ if __name__ == '__main__':
     print(article_date)
 
     tablenode = bsobj.find('div', {'class': 'bencandy_nr'}).table
-    df = pd.read_html(str(tablenode))
-    print(len(df))
-    print(df[0])
+    df = pd.read_html(str(tablenode), header=0)[0]
+    df2 = df.iloc[1:, 0:-1]
+    df2.columns = df.columns.delete(0)
+    df2 = df2.append(df.iloc[0, 1:])
+    df2['产品'] = df.iat[0, 0].replace(' ', '')
+    df2.insert(0, '产品', df2.pop('产品'))
+    df2 = df2.sort_index()
+    print(df2)
