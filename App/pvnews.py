@@ -13,6 +13,7 @@ import time
 import UrlUtility
 import pandas as pd
 from bs4.diagnose import diagnose
+import sys
 
 
 LoginUrl = 'http://www.pvnews.cn/e/enews/index.php'
@@ -37,21 +38,22 @@ pages = set()
 hrefs = set()
 
 session = requests.Session()
-
+type_count = 1
 
 def getAllhrefsFromSql(item_type, mark=None):
+    '''mark == 0 url没被成功读取过 mark == 1 已经读取过'''
     conn = sqlite3.connect(DB_Helper.db_file)
     if mark is None:
-        sqlstr = "select url from %s where type = '%s'" \
+        sqlstr = "select Id,url from %s where type     = '%s'" \
                  % (DB_Helper.PvNewsUrlSet_Table, item_type)
     else:
-        sqlstr = "select url from %s where type = '%s' and mark = %s" \
+        sqlstr = "select Id,url from %s where type = '%s' and mark = %s" \
                  % (DB_Helper.PvNewsUrlSet_Table, item_type, mark)
     cursor = conn.execute(sqlstr)
     values = cursor.fetchall()
     cursor.close()
     conn.close()
-    hrefList = set(i[0] for i in values)
+    hrefList = set(values)
     return hrefList
 
 
@@ -74,19 +76,57 @@ def savehrefToSql(item_type):
 
 
 def getDataFromHref(item_type):
+    global type_count
     # 获得还没采集数据的href地址
-    targetlist = getAllhrefsFromSql(item_type, mark=1)
-
+    targetlist = getAllhrefsFromSql(item_type, mark=0)
+    conn = sqlite3.connect(DB_Helper.db_file)
+    
+    print("开始采集内链表格数据")
     for targethref in targetlist:
-        ObjUrl = BaseUrl + targethref
-        time.sleep(2)
-        bsObj = UrlUtility.getBsObjFromUrl(ObjUrl)
+        urlid = targethref[0]
+        suburl = targethref[1]
+        ObjUrl = BaseUrl + suburl
+        time.sleep(1)
+        bsObj = UrlUtility.getBsObjFromUrl(ObjUrl, s=session)
         if bsObj is None:
-            return
+            continue
 
         # 日期
         subtitle = bsObj.find('div', {'class': 'bencandy_ftitle'})
         article_date = subtitle.get_text(strip=True).split(' ', 1)[0]
+    
+        tablenode = bsObj.find('div', {'class': 'bencandy_nr'}).table
+        df = pd.read_html(str(tablenode), header=0)[0]
+        # print(df.columns[0]) # 表名
+    
+        # 加上.copy()可以避免警告 虽然都能正确设置值
+        df2 = df.iloc[1:].copy()
+        df2.columns = df.iloc[0].values
+        df2.insert(0, 'date', None)
+        df2['date'] = article_date
+    
+        table_type = 1
+        print("开始数据库存入")
+        while 1:
+            try:
+                tablename = DB_Helper.PvNewsData_Table + ' ' + str(table_type)
+                df2.to_sql(tablename, conn, if_exists='append', index=False)
+            except sqlite3.OperationalError:
+                if table_type > type_count:
+                    logger.error("Url: %s 表存储失败", suburl)
+                    break
+                table_type += 1
+            else:
+                conn.execute("update %s set mark = 1 where Id = %s" % (DB_Helper.PvNewsUrlSet_Table, urlid))
+                conn.commit()
+                if table_type > type_count:
+                    type_count = table_type
+                break
+        if type_count > 8:
+            print("表格种类过多")
+            break
+        print("存入完成")
+    conn.close()
 
 
 def searchAllPages(url, name):
@@ -159,70 +199,22 @@ def getDataByItem(item):
     item_url = Url_dir[item]
     item_name = Name_dir[item]
     print("%s :开始收集" % item)
-    # 递归查询
-    searchAllPages(item_url, item_name)
-
-    # 存储内链地址
-    savehrefToSql(item_type)
+    # # 递归查询
+    # searchAllPages(item_url, item_name)
+    #
+    # # 存储内链地址
+    # savehrefToSql(item_type)
 
     # 获取内链数据
+    getDataFromHref(item_type)
 
 
-url1 = 'http://www.pvnews.cn/yuanshengduojing/2016-10-07/162782.php'
-url2 = 'http://www.pvnews.cn/yuanshengduojing/2016-10-07/162783.php'
-url3 = 'http://www.pvnews.cn/yuanshengduojing/2016-10-07/162784.php'
-url4 = 'http://www.pvnews.cn/yuanshengduojing/2016-09-29/162644.php'
-url5 = 'http://www.pvnews.cn/yuanshengduojing/2016-09-29/162643.php'
-type_count = 1
 if __name__ == '__main__':
+    sys.setrecursionlimit(5000)
     
     if not accountLogin('cjsc', 'cjscdhl'):
         exit(0)
-    
-    urllist = []
-    urllist.append(url1)
-    urllist.append(url2)
-    urllist.append(url3)
-    urllist.append(url4)
-    urllist.append(url5)
-    conn = sqlite3.connect(DB_Helper.db_file)
-    
-    for url in urllist:
-        print("开始解析地址")
-        
-        time.sleep(2)
-        bsobj = UrlUtility.getBsObjFromUrl(url, s=session)
-        
-        # 文章日期
-        subtitle = bsobj.find('div', {'class': 'bencandy_ftitle'})
-        article_date = subtitle.get_text(strip=True).split(' ', 1)[0]
-        
-        tablenode = bsobj.find('div', {'class': 'bencandy_nr'}).table
-        df = pd.read_html(str(tablenode), header=0)[0]
-        # print(df.columns[0])
-        df2 = df.iloc[1:].copy()
-        df2.columns = df.iloc[0].values
-        df2.insert(0, 'date', None)
-        df2['date'] = article_date
-        
-        table_type = 1
-        print("开始数据库存入")
-        while 1:
-            try:
-                tablename = DB_Helper.PvNewsData_Table + ' ' + str(table_type)
-                df2.to_sql(tablename, conn, if_exists='append', index=False)
-            except sqlite3.OperationalError:
-                if table_type > type_count:
-                    logger.error("Url: %s 表存储失败", url)
-                    break
-                table_type += 1
-            else:
-                if table_type > type_count:
-                    type_count = table_type
-                break
-        print("存入完成")
-    
-    conn.close()
+    getDataByItem('多晶硅料')
     
     # bsobj = UrlUtility.getBsObjFromUrl('http://www.pvnews.cn/yuanshengduojing/2010-11-05/645.html')
     
