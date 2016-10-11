@@ -3,16 +3,13 @@
 
 import requests
 from builtins import print
-from pyquery import PyQuery as Q
 from logger import logger
 import DB_Helper
 import re
-from bs4 import BeautifulSoup
 import sqlite3
 import time
 import UrlUtility
 import pandas as pd
-from bs4.diagnose import diagnose
 import sys
 
 
@@ -80,6 +77,7 @@ def getDataFromHref(item_type):
     # 获得还没采集数据的href地址
     targetlist = getAllhrefsFromSql(item_type, mark=0)
     conn = sqlite3.connect(DB_Helper.db_file)
+    patten = re.compile(r"(?<=\d{1,2}月\d{2}日?)\w+(?=部分)")
     
     print("开始采集内链表格数据")
     for targethref in targetlist:
@@ -91,19 +89,42 @@ def getDataFromHref(item_type):
         if bsObj is None:
             continue
 
+        # 表格样式判断 获得表格第一行中div 标签的数量判断表格样式
+        tablenode = bsObj.find('div', {'class': 'bencandy_nr'}).table
+        trnode = tablenode.find('tr')
+        tdlist = trnode.find_all('td')
+
+        if tdlist == 1:
+            tab_style = 'new'
+        else:
+            tab_style = 'old'
+
+        # 页面类型获取
+        title = bsObj.find('div', {'class': 'bencandy_title'}).get_text()
+        dataDsc = patten.findall(title)
+        if dataDsc[0] == '日':
+            dataDsc = dataDsc[1:-1]
+        
         # 日期
         subtitle = bsObj.find('div', {'class': 'bencandy_ftitle'})
         article_date = subtitle.get_text(strip=True).split(' ', 1)[0]
-    
+
+        # 表数据获得
         tablenode = bsObj.find('div', {'class': 'bencandy_nr'}).table
         df = pd.read_html(str(tablenode), header=0)[0]
-        # print(df.columns[0]) # 表名
-    
-        # 加上.copy()可以避免警告 虽然都能正确设置值
-        df2 = df.iloc[1:].copy()
-        df2.columns = df.iloc[0].values
-        df2.insert(0, 'date', None)
+
+        if tab_style == 'new':
+            df2 = df.iloc[1:].copy()
+            df2.columns = df.iloc[0].values
+        else:
+            df2 = df.iloc[1:, 0:-1].copy()
+            df2.columns = df.columns.delete(0)
+            df2 = df2.append(df.iloc[0, 1:])
+
+        df2.insert(0, '日期', None)
         df2['date'] = article_date
+        df2.insert(1, '数据类型', None)
+        df2['src'] = dataDsc
     
         table_type = 1
         print("开始数据库存入")

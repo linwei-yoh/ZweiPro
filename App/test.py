@@ -4,6 +4,7 @@
 import pandas as pd
 import numpy as np
 import sys
+import re
 
 import requests
 from lxml import html
@@ -66,10 +67,56 @@ def test5():
         print(result[index])
 
 
-if __name__ == '__main__':
-    sys.setrecursionlimit(5000)
-    page = open(err_path, encoding='utf-8').read()
+table1 = '../type1.txt'
+table2 = '../type2.txt'
+table3 = '../type3.txt'
+
+
+def table1_pd():
+    page = open(table1).read()
     bsObj = BeautifulSoup(page, 'lxml')
-    tablenode = bsObj.find('div', {'class': 'bencandy_nr'}).table
-    df = pd.read_html(str(tablenode), header=0)[0]
-    print(df)
+    
+    trnode = bsObj.find('tr')
+    div_first = trnode.find_all('td')
+    print(len(div_first))
+    
+    for div in div_first:
+        print(div.get_text())
+    
+    df = pd.read_html(page, header=0)[0]
+    # print(df.columns[0]) # 表名
+    
+    # 加上.copy()可以避免警告 虽然都能正确设置值
+    df2 = df.iloc[1:].copy()
+    df2.columns = df.iloc[0].values
+    print(df2)
+
+
+def table2_pd():
+    page = open(table3, encoding='utf-8').read()
+    bsObj = BeautifulSoup(page, 'lxml')
+    
+    trnode = bsObj.find('tr')
+    div_first = trnode.find_all('td')
+    print(len(div_first))
+    for div in div_first:
+        print(div.get_text())
+    
+    df = pd.read_html(page, header=0)[0]
+    
+    df2 = df.iloc[1:, 0:-1]
+    df2.columns = df.columns.delete(0)
+    df2 = df2.append(df.iloc[0, 1:])
+    
+    # df2.insert(0, '产品', None)
+    # df2['产品'] = df.iat[0, 0].replace(' ', '')
+    df2 = df2.sort_index()
+    print(df2)
+
+
+if __name__ == '__main__':
+    # p = re.compile(r"(?<=\d{1,2}'月'\d{2}'日'?)\w+(?='部分)")
+    strpat = r'(?<=\d{1,2}%s\d{2}%s?)\w+(?=%s)' % ('月', '日', '部分')
+    tarstr = '10月11日250W多晶硅电池组件部分厂家出厂含税报价'
+    re.search(strpat, tarstr)
+    # print(p.findall('one1two2three3four4'))
