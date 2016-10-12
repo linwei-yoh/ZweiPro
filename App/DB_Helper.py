@@ -12,7 +12,7 @@ SolarUrlSet_Table = "Solar_Url"
 SolarData_Table = 'Solar_Data'
 
 PvNewsUrlSet_Table = 'PvNews_Url'
-PvNewsData_Table = 'PvNews_Data'
+PvNewsData_Table = 'PvNews_Item'
 
 Create_SolarUrlSet_Sql = 'create table %s (' \
                          'Id INTEGER PRIMARY KEY AUTOINCREMENT,' \
@@ -110,7 +110,7 @@ def db_init():
     CreateTable(db_file, SolarData_Table)
 
     CreateTable(db_file, PvNewsUrlSet_Table)
-    # CreateTable(db_file, PvNewsData_Table)
+    # CreateTable(db_file, PvNewsData_Table) # 不再需要
 
     print('创建数据库 完成')
 

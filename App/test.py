@@ -115,8 +115,8 @@ def table2_pd():
 
 
 if __name__ == '__main__':
-    # p = re.compile(r"(?<=\d{1,2}'月'\d{2}'日'?)\w+(?='部分)")
-    strpat = r'(?<=\d{1,2}%s\d{2}%s?)\w+(?=%s)' % ('月', '日', '部分')
-    tarstr = '10月11日250W多晶硅电池组件部分厂家出厂含税报价'
-    re.search(strpat, tarstr)
-    # print(p.findall('one1two2three3four4'))
+    desc_patten = re.compile(r'\d{1,2}月\d{2}日?(\w+)(?=部分)')
+    t = '''10月11日薄膜电池组件部分厂家CIF报价'''
+    result = desc_patten.findall(t)
+    print(result)
+# print(p.findall('one1two2three3four4'))

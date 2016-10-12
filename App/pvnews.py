@@ -35,7 +35,7 @@ pages = set()
 hrefs = set()
 
 session = requests.Session()
-type_count = 1
+
 
 def getAllhrefsFromSql(item_type, mark=None):
     '''mark == 0 url没被成功读取过 mark == 1 已经读取过'''
@@ -72,19 +72,22 @@ def savehrefToSql(item_type):
     print("内链地址更新完成 更新数量:%s" % newhref_count)
 
 
-def getDataFromHref(item_type):
+def getDataFromHref(item_name):
     global type_count
+
+    item_type = Type_dir[item_name]
+    tablepath = DB_Helper.PvNewsData_Table + item_type + '-'
     # 获得还没采集数据的href地址
     targetlist = getAllhrefsFromSql(item_type, mark=0)
     conn = sqlite3.connect(DB_Helper.db_file)
-    patten = re.compile(r"(?<=\d{1,2}月\d{2}日?)\w+(?=部分)")
+    patten = re.compile(r'\d{1,2}月\d{1,2}日?(\w+)(?=部分)')
     
     print("开始采集内链表格数据")
     for targethref in targetlist:
         urlid = targethref[0]
         suburl = targethref[1]
         ObjUrl = BaseUrl + suburl
-        time.sleep(1)
+        time.sleep(2)
         bsObj = UrlUtility.getBsObjFromUrl(ObjUrl, s=session)
         if bsObj is None:
             continue
@@ -94,18 +97,24 @@ def getDataFromHref(item_type):
         trnode = tablenode.find('tr')
         tdlist = trnode.find_all('td')
 
-        if tdlist == 1:
+        if len(tdlist) == 1:
             tab_style = 'new'
         else:
             tab_style = 'old'
 
-        # 页面类型获取
+        # 数据来源获取
         title = bsObj.find('div', {'class': 'bencandy_title'}).get_text()
-        dataDsc = patten.findall(title)
-        if dataDsc[0] == '日':
-            dataDsc = dataDsc[1:-1]
-        
-        # 日期
+        try:
+            match = patten.findall(title)
+            result = match[0]
+        except IndexError as e:
+            print(match)
+            print("url: %s  捕获标题失败" % ObjUrl)
+            continue
+        else:
+            article_src = result
+
+        # 日期获取
         subtitle = bsObj.find('div', {'class': 'bencandy_ftitle'})
         article_date = subtitle.get_text(strip=True).split(' ', 1)[0]
 
@@ -122,31 +131,31 @@ def getDataFromHref(item_type):
             df2 = df2.append(df.iloc[0, 1:])
 
         df2.insert(0, '日期', None)
-        df2['date'] = article_date
-        df2.insert(1, '数据类型', None)
-        df2['src'] = dataDsc
-    
+        df2['日期'] = article_date
+        df2.insert(1, '数据来源', None)
+        df2['数据来源'] = article_src
+
+        # 数据存入sql
         table_type = 1
         print("开始数据库存入")
         while 1:
             try:
-                tablename = DB_Helper.PvNewsData_Table + ' ' + str(table_type)
+                tablename = tablepath + str(table_type)
                 df2.to_sql(tablename, conn, if_exists='append', index=False)
             except sqlite3.OperationalError:
-                if table_type > type_count:
-                    logger.error("Url: %s 表存储失败", suburl)
-                    break
                 table_type += 1
+                if table_type > 15:
+                    break
             else:
                 conn.execute("update %s set mark = 1 where Id = %s" % (DB_Helper.PvNewsUrlSet_Table, urlid))
                 conn.commit()
-                if table_type > type_count:
-                    type_count = table_type
+                print("存入完成")
                 break
-        if type_count > 8:
-            print("表格种类过多")
+
+        if table_type > 15:
+            print("项目:%s 表格种类过多" % item_name)
             break
-        print("存入完成")
+
     conn.close()
 
 
@@ -205,10 +214,10 @@ def accountLogin(username, password):
     s = session.post(LoginUrl, data=data, headers=headers)
 
     if len(s.cookies) == 0:
-        print("登录失败")
+        print("pvnews登录失败")
         return False
     else:
-        print("登录完成")
+        print("pvnews登录完成")
         return True
 
 
@@ -220,36 +229,22 @@ def getDataByItem(item):
     item_url = Url_dir[item]
     item_name = Name_dir[item]
     print("%s :开始收集" % item)
-    # # 递归查询
-    # searchAllPages(item_url, item_name)
-    #
-    # # 存储内链地址
-    # savehrefToSql(item_type)
+    # 递归查询
+    searchAllPages(item_url, item_name)
+
+    # 存储内链地址
+    savehrefToSql(item_type)
 
     # 获取内链数据
-    getDataFromHref(item_type)
+    getDataFromHref(item)
 
 
-if __name__ == '__main__':
+def get_data_from_pvnews(username, password):
     sys.setrecursionlimit(5000)
-    
-    if not accountLogin('cjsc', 'cjscdhl'):
-        exit(0)
+
+    if not accountLogin(username, password):
+        return
     getDataByItem('多晶硅料')
-    
-    # bsobj = UrlUtility.getBsObjFromUrl('http://www.pvnews.cn/yuanshengduojing/2010-11-05/645.html')
-    
-    # # 文章日期
-    # subtitle = bsobj.find('div', {'class': 'bencandy_ftitle'})
-    # article_date = subtitle.get_text(strip=True).split(' ', 1)[0]
-    # print(article_date)
-    #
-    # tablenode = bsobj.find('div', {'class': 'bencandy_nr'}).table
-    # df = pd.read_html(str(tablenode), header=0)[0]
-    # df2 = df.iloc[1:, 0:-1]
-    # df2.columns = df.columns.delete(0)
-    # df2 = df2.append(df.iloc[0, 1:])
-    # df2.insert(0, '产品', None)
-    # df2['产品'] = df.iat[0, 0].replace(' ', '')
-    # df2 = df2.sort_index()
-    # print(df2)
+    getDataByItem('硅片晶圆')
+    getDataByItem('晶硅电池')
+    getDataByItem('电池组件')
